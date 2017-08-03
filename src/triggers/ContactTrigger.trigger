@@ -1,6 +1,9 @@
 trigger ContactTrigger on Contact (after insert, after update) {
-  if (Trigger.isAfter && Trigger.isInsert || Trigger.isAfter && Trigger.isUpdate) {
-      ContactTriggerHandler handler = new ContactTriggerHandler();
-      handler.contactShare(Trigger.new);
+  if (Trigger.isAfter) {
+    if (Trigger.isInsert) {
+      ContactTriggerHandler.insertShare(Trigger.new);
+    } else if (Trigger.isUpdate) {
+      ContactTriggerHandler.updateShare(Trigger.old, Trigger.new);
+    }
   }
 }
