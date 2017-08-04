@@ -1,31 +1,11 @@
 public class ContactTriggerHandler {
   
-  public static void insertShare(List<Contact> contactList) {
+  public static void sharingRecords(String sObjectName, String fieldName, List<Contact> oldContacts, List<Contact> newContacts) {
     
+    String objectShareType = sObjectName.contains('__c') ? sObjectName.replace('__c', '__Share') : sObjectName + 'Share';
+
     try {
-      Database.query('SELECT Id FROM ContactShare LIMIT 1');      
-    } catch(Exception e) {
-      return;
-    }
-
-    // Map<Contact.Id, User.Id>
-    Map<String, String> sharingUsers = new Map<String, String>();
-    for (Contact c : contactList) {
-      sharingUsers.put(c.Id, c.Employee_User__c);
-    }
-
-    // Map<Contact.Id, Group.Id>
-    Map<String, String> sharingGroups = getSharingGroups(sharingUsers);
-
-    List<ContactShare> contactShrs = getShares(sharingUsers, sharingGroups);
-
-    Database.SaveResult[] lsr = Database.insert(contactShrs, false);
-  }
-
-  public static void updateShare(List<Contact> oldContacts, List<Contact> newContacts) {
-    
-    try {
-      Database.query('SELECT Id FROM ContactShare LIMIT 1');      
+      Database.query('SELECT Id FROM ' + objectShareType + ' LIMIT 1');      
     } catch(Exception e) {
       return;
     }
@@ -34,29 +14,36 @@ public class ContactTriggerHandler {
     Map<String, String> sharingUsers = new Map<String, String>();
     Map<String, String> forDelete = new Map<String, String>();
 
-    for (Contact cOld : oldContacts) {
-      for (Contact cNew : newContacts) {
-        if (cOld.Employee_User__c != cNew.Employee_User__c) {
-          sharingUsers.put(cNew.Id, cNew.Employee_User__c);
-          forDelete.put(cOld.Id, cOld.Employee_User__c);
+    if (oldContacts == null || oldContacts.isEmpty()) {
+      for (sObject c : newContacts) {
+        sharingUsers.put(String.valueOf(c.get('Id')), String.valueOf(c.get(fieldName)));
+      }
+    } else {
+      for (sObject cOld : oldContacts) {
+        for (sObject cNew : newContacts) {
+          if (cOld.get(fieldName) != cNew.get(fieldName)) {
+            sharingUsers.put(String.valueOf(cNew.get('Id')), String.valueOf(cNew.get(fieldName)));
+            forDelete.put(String.valueOf(cOld.get('Id')), String.valueOf(cOld.get(fieldName)));
+          }
         }
       }
     }
 
     Map<String, String> sharingGroups = getSharingGroups(sharingUsers);
 
-    List<ContactShare> deleteRecords = [SELECT Id FROM ContactShare WHERE UserOrGroupId = :forDelete.values()];
-    Database.delete(deleteRecords, false);
-    forDelete = getSharingGroups(forDelete);
-    deleteRecords = [SELECT Id FROM ContactShare WHERE UserOrGroupId = :forDelete.values()];
-    Database.delete(deleteRecords, false);
+    if (!forDelete.isEmpty()) {
+      forDelete.putall(getSharingGroups(forDelete));
+      List<sObject> deleteRecords = Database.query('SELECT Id FROM ' + objectShareType + ' WHERE UserOrGroupId = :forDelete.values()');
+      Database.delete(deleteRecords, false);
+    }
 
-    List<ContactShare> contactShrs = getShares(sharingUsers, sharingGroups);
+    List<sObject> contactShrs = getShares(sObjectName, sharingUsers);
+    contactShrs.addAll(getShares(sObjectName, sharingGroups));
 
     Database.SaveResult[] lsr = Database.insert(contactShrs, false);
   }
 
-  // return Map<Contact.Id, Group.Id>
+  // Map<Contact.Id, User.Id> -> Map<Contact.Id, Group.Id>
   private static Map<String, String> getSharingGroups(Map<String, String> sharingUsers) {
     List<String> namesForGroup = new List<String>();
     for (String g : sharingUsers.values()) {
@@ -69,34 +56,27 @@ public class ContactTriggerHandler {
     }
 
     Map<String, String> sharingGroups = new Map<String, String>();
-    for (String contactId : sharingUsers.keySet()) {
-      sharingGroups.put(contactId, groups.get('ManagerUp_' + sharingUsers.get(contactId)));
+    for (String recId : sharingUsers.keySet()) {
+      sharingGroups.put(recId, groups.get('ManagerUp_' + sharingUsers.get(recId)));
     }
 
     return sharingGroups;
   }
 
-  private static List<ContactShare> getShares(Map<String, String> users, Map<String, String> groups) {
-    List<ContactShare> shares = new List<ContactShare>();
-    ContactShare contactShrForGroup;
-    ContactShare contactShrForUser;
+  private static List<sObject> getShares(String sObjectName, Map<String, String> users) {
+    Type objectShareType = Type.forName(sObjectName.contains('__c') ? sObjectName.replace('__c', '__Share') : sObjectName + 'Share');
+    List<sObject> shares = new List<sObject>();
+    sObject shrForUser;
 
-    for (String contactId : users.keySet()) {
-      contactShrForGroup = new ContactShare();
-      contactShrForUser = new ContactShare();
+    for (String recId : users.keySet()) {
+      shrForUser = (sObject) objectShareType.newInstance();
 
-      contactShrForGroup.ContactAccessLevel = 'Edit';
-      contactShrForGroup.ContactId = contactId;
-      contactShrForGroup.RowCause = Schema.ContactShare.RowCause.Manual;
-      contactShrForGroup.UserOrGroupId = groups.get(contactId);
+      shrForUser.put(sObjectName.contains('__c') ? 'AccessLevel' : sObjectName + 'AccessLevel', 'Edit');
+      shrForUser.put(sObjectName.contains('__c') ? 'ParentId' : sObjectName + 'Id', recId);
+      shrForUser.put('RowCause', 'Manual');
+      shrForUser.put('UserOrGroupId', users.get(recId));
 
-      contactShrForUser.ContactAccessLevel = 'Edit';
-      contactShrForUser.ContactId = contactId;
-      contactShrForUser.RowCause = Schema.ContactShare.RowCause.Manual;
-      contactShrForUser.UserOrGroupId = users.get(contactId);
-
-      shares.add(contactShrForGroup);
-      shares.add(contactShrForUser);
+      shares.add(shrForUser);
     }
     return shares;
   }
