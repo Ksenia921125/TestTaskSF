@@ -1,6 +1,6 @@
 public class ContactTriggerHandler {
   
-  public static void sharingRecords(String sObjectName, String fieldName, List<Contact> oldContacts, List<Contact> newContacts) {
+  public static void sharingRecords(String sObjectName, String fieldName, List<sObject> oldContacts, List<sObject> newContacts) {
     
     String objectShareType = sObjectName.contains('__c') ? sObjectName.replace('__c', '__Share') : sObjectName + 'Share';
 
@@ -32,8 +32,10 @@ public class ContactTriggerHandler {
     Map<String, String> sharingGroups = getSharingGroups(sharingUsers);
 
     if (!forDelete.isEmpty()) {
-      forDelete.putall(getSharingGroups(forDelete));
-      List<sObject> deleteRecords = Database.query('SELECT Id FROM ' + objectShareType + ' WHERE UserOrGroupId = :forDelete.values()');
+      List<String> delRec = new List<String>();
+      delRec.addAll(forDelete.values());
+      delRec.addAll(getSharingGroups(forDelete).values());
+      List<sObject> deleteRecords = Database.query('SELECT Id FROM ' + objectShareType + ' WHERE UserOrGroupId = :delRec');
       Database.delete(deleteRecords, false);
     }
 
