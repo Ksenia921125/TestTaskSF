@@ -1,0 +1,291 @@
+<apex:page docType="html-5.0" tabStyle="Query_designer__tab" controller="QueryDesignerController">
+	<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js" />
+	<apex:stylesheet value="{!URLFOR($Resource.Bootstrap, '/css/bootstrap.min.css')}"/>
+	<apex:includeScript value="{!URLFOR($Resource.Bootstrap, '/js/bootstrap.min.js')}"/>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.11/angular.min.js"></script>
+
+	<style>
+		body{
+		  margin: 20px auto;
+		}
+		ul.nav-wizard {
+		  background-color: #f1f1f1;
+		  border: 1px solid #d4d4d4;
+		  -webkit-border-radius: 6px;
+		  -moz-border-radius: 6px;
+		  border-radius: 3px;
+		  position: relative;
+		  overflow: hidden;
+		}
+		ul.nav-wizard:before {
+		  position: absolute;
+		  border-top: 1px solid #d4d4d4;
+		  border-bottom: 1px solid #d4d4d4;
+		}
+		ul.nav-wizard:after {
+		  display: block;
+		  position: absolute;
+		  left: 0px;
+		  right: 0px;
+		  top: 138px;
+		  height: 47px;
+		  border-top: 1px solid #d4d4d4;
+		  border-bottom: 1px solid #d4d4d4;
+		  z-index: 11;
+		  content: " ";
+		}
+		ul.nav-wizard li {
+		  position: relative;
+		  float: left;
+		  height: 46px;
+		  display: inline-block;
+		  text-align: center;
+		  padding: 0 20px 0 30px;
+		  margin: 0;
+		  font-size: 16px;
+		  line-height: 46px;
+		}
+		ul.nav-wizard li a {
+		  color: #428bca;
+		  padding: 0;
+		}
+		ul.nav-wizard li a:hover {
+		  background-color: transparent;
+		}
+		ul.nav-wizard li:before {
+		  position: absolute;
+		  display: block;
+		  border: 24px solid transparent;
+		  border-left: 16px solid #d4d4d4;
+		  border-right: 0;
+		  top: -1px;
+		  z-index: 10;
+		  content: '';
+		  right: -16px;
+		}
+		ul.nav-wizard li:after {
+		  position: absolute;
+		  display: block;
+		  border: 24px solid transparent;
+		  border-left: 16px solid #f1f1f1;
+		  border-right: 0;
+		  top: -1px;
+		  z-index: 10;
+		  content: '';
+		  right: -15px;
+		}
+		ul.nav-wizard li.active {
+		  color: #3a87ad;
+		  background: #dedede;
+		}
+		ul.nav-wizard li.active:after {
+		  border-left: 16px solid #dedede;
+		}
+		ul.nav-wizard li.active a,
+		ul.nav-wizard li.active a:active,
+		ul.nav-wizard li.active a:visited,
+		ul.nav-wizard li.active a:focus {
+		  color: #989898;
+		  background: #dedede;
+		}
+		ul.nav-wizard .active ~ li {
+		  color: #999999;
+		  background: #f9f9f9;
+		}
+		ul.nav-wizard .active ~ li:after {
+		  border-left: 16px solid #f9f9f9;
+		}
+		ul.nav-wizard .active ~ li a,
+		ul.nav-wizard .active ~ li a:active,
+		ul.nav-wizard .active ~ li a:visited,
+		ul.nav-wizard .active ~ li a:focus {
+		  color: #999999;
+		  background: #f9f9f9;
+		}
+		ul.nav-wizard.nav-wizard-backnav li:hover {
+		  color: #468847;
+		  background: #f6fbfd;
+		}
+		ul.nav-wizard.nav-wizard-backnav li:hover:after {
+		  border-left: 16px solid #f6fbfd;
+		}
+		ul.nav-wizard.nav-wizard-backnav li:hover a,
+		ul.nav-wizard.nav-wizard-backnav li:hover a:active,
+		ul.nav-wizard.nav-wizard-backnav li:hover a:visited,
+		ul.nav-wizard.nav-wizard-backnav li:hover a:focus {
+		  color: #468847;
+		  background: #f6fbfd;
+		}
+		ul.nav-wizard.nav-wizard-backnav .active ~ li {
+		  color: #999999;
+		  background: #ededed;
+		}
+		ul.nav-wizard.nav-wizard-backnav .active ~ li:after {
+		  border-left: 16px solid #ededed;
+		}
+		ul.nav-wizard.nav-wizard-backnav .active ~ li a,
+		ul.nav-wizard.nav-wizard-backnav .active ~ li a:active,
+		ul.nav-wizard.nav-wizard-backnav .active ~ li a:visited,
+		ul.nav-wizard.nav-wizard-backnav .active ~ li a:focus {
+		  color: #999999;
+		  background: #ededed;
+		}
+	</style>
+
+	<script>
+	var queryApp = angular.module('queryApp', []);
+
+	queryApp.controller('AppCtrl', ['$scope', function($scope) {
+		$scope.SObjects = {!SObjects};
+		$scope.fields = null;
+
+		$scope.reloadFields = function() {
+			$scope.fields = $scope.SObjects.find(function(obj) {
+				return obj.objectTypeName == $scope.selectedObject;
+			}).fields;
+		};
+
+		$scope.query = null;
+
+		$scope.designQuery = function() {
+			$scope.query = 'SELECT ' + $scope.selectedFields.toString().replace(/,/g, ", ") + ' FROM ' + $scope.selectedObject;
+		}
+
+		$scope.result = null;
+
+		$scope.execute = function(scope) {
+			Visualforce.remoting.Manager.invokeAction(
+				'QueryDesignerController.executeQuery', $scope.query,
+				function(result, event) {
+					$scope.result = result;
+				},
+				{escape: false}
+			);
+			$scope.selectedFields = $scope.query.substring(7, $scope.query.indexOf(' FROM')).trim().split(", ");
+			console.log($scope.selectedFields);
+		}
+	}]);
+	</script>
+
+	<div class="salesforcebootstrap" ng-app="queryApp">
+		<div ng-controller="AppCtrl">
+
+
+<div class="container col-md-12">
+    <div class="row">
+		<section>
+        <div class="wizard">
+            
+                <ul class="nav nav-wizard">
+
+                    <li class="active">
+                        <a href="#step1" data-toggle="tab">SObjectType</a>
+                    </li>
+
+                    <li class="disabled">
+                        <a href="#step2" data-toggle="tab">Fields</a>
+                    </li>
+                    
+                     <li class="disabled">
+                        <a href="#step4" data-toggle="tab">Query</a>
+                    </li>
+                </ul>
+           
+
+            <form>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="step1">
+                        <h3>Step 1</h3>
+                        <label for="objectSelect">Choose SObjectType:</label>
+						<select name="" id="objectSelect" class="form-control" ng-change="reloadFields();" ng-model="selectedObject">
+							<option ng-repeat="option in SObjects" value="{{option.objectTypeName}}">{{option.objectTypeName}}</option>
+						</select>
+                        <ul class="list-inline pull-right">
+                            <li><button type="button" class="btn btn-primary">Continue</button></li>
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="step2">
+                        <h3>Step 2</h3>
+                        <label for="fieldSelect">Choose fields:</label>
+						<select name="" id="fieldSelect" class="form-control" ng-change="designQuery();" ng-model="selectedFields" size="5" multiple="true">
+							<option ng-repeat="item in fields" value="{{item}}">{{item}}</option>
+						</select>
+                        <ul class="list-inline pull-right">
+                           <li><button type="button" class="btn btn-primary">Continue</button></li>
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="step4">
+                        <h3>Complete</h3>
+                        <label for="queryStr">Check query:</label>
+						<textarea id="queryStr" rows="2" class="form-control" ng-model="query"></textarea>
+						<ul class="list-inline pull-right">
+							<li><button ng-click ="execute();" ng-model="result" class="btn btn-primary">Execute</button></li>
+						</ul>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+            </form>
+        </div>
+    </section>
+   </div>
+</div>
+			<div class="col-md-12">
+				<table class="table table-striped">
+					<thead>
+						<tr>
+							<th ng-repeat="item in selectedFields">{{item}}</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr ng-repeat="option in result">
+							<td ng-repeat="item in selectedFields">{{option[item]}}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+<!-- 				<select name="repeatSelect" id="repeatSelect" ng-change="reloadFields();" ng-model="selectedObject">
+					<option ng-repeat="option in SObjects" value="{{option.objectTypeName}}">{{option.objectTypeName}}</option>
+				</select><br/>
+				<select name="repeatSelect2" id="repeatSelect2" ng-change="designQuery();" ng-model="selectedFields" size="5" multiple="true">
+					<option ng-repeat="item in fields" value="{{item}}">{{item}}</option>
+				</select><br/>
+				<textarea rows="2" cols="100" ng-model="query"></textarea><br/>
+				<button ng-click ="execute();" ng-model="result">Execute</button><br/>
+				<table>
+					<thead>
+						<tr>
+							<th ng-repeat="item in selectedFields">{{item}}</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr ng-repeat="option in result">
+							<td ng-repeat="item in selectedFields">{{option[item]}}</td>
+						</tr>
+					</tbody>
+				</table> -->
+		</div>
+	</div>
+
+	<script>
+		$(document).ready(function () {
+			$('a[data-toggle="tab"]').on('show.bs.tab', function (e) {
+				var $target = $(e.target);
+				if ($target.parent().hasClass('disabled')) {
+					return false;
+				}
+			});
+
+			$(".btn-primary").click(function (e) {
+				var $active = $('.wizard .nav-wizard li.active');
+				$active.next().removeClass('disabled');
+				nextTab($active);
+			});
+		});
+
+		function nextTab(elem) {
+			$(elem).next().find('a[data-toggle="tab"]').click();
+		}
+	</script>
+
+</apex:page>

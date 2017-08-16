@@ -12,6 +12,7 @@ public class QueryDesignerController {
 
     public static String getSObjects() {
         List<ObjectType> sObjectsList = new List<ObjectType>();
+
         for (Schema.SObjectType sObjectType : Schema.getGlobalDescribe().values()) {
             String objType = String.valueOf(sObjectType);
             List<String> fields = getFields(objType);
@@ -26,6 +27,7 @@ public class QueryDesignerController {
         for (Schema.SObjectField field : fieldMap.values()) {
             fieldsList.add(String.valueOf(field));
         }
+        fieldsList.sort();
         return fieldsList;
     }
 
