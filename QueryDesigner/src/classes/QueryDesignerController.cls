@@ -27,7 +27,6 @@ public class QueryDesignerController {
         for (Schema.SObjectField field : fieldMap.values()) {
             fieldsList.add(String.valueOf(field));
         }
-        fieldsList.sort();
         return fieldsList;
     }
 
