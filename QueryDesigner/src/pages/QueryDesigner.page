@@ -1,315 +1,372 @@
 <apex:page docType="html-5.0" tabStyle="Query_designer__tab" controller="QueryDesignerController">
 
-	<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js" />
-	<apex:stylesheet value="{!URLFOR($Resource.Bootstrap, '/css/bootstrap.min.css')}"/>
-	<apex:includeScript value="{!URLFOR($Resource.Bootstrap, '/js/bootstrap.min.js')}"/>
-	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.11/angular.min.js"></script>
+  <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js" />
+  <apex:stylesheet value="{!URLFOR($Resource.Bootstrap, '/css/bootstrap.min.css')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.Bootstrap, '/js/bootstrap.min.js')}"/>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.11/angular.min.js"></script>
 
-	<style>
-		body{ 
-			margin-top:40px; 
-		}
-		.salesforcebootstrap .stepwizard-step p {
-			margin-top: 10px;
-		}
-		.salesforcebootstrap .stepwizard-row {
-			display: table-row;
-		}
-		.salesforcebootstrap .stepwizard {
-			display: table;
-			width: 100%;
-			position: relative;
-		}
-		.salesforcebootstrap .stepwizard-step button[disabled] {
-			opacity: 1 !important;
-			filter: alpha(opacity=100) !important;
-		}
-		.salesforcebootstrap .stepwizard-row:before {
-			top: 14px;
-			bottom: 0;
-			position: absolute;
-			content: " ";
-			width: 100%;
-			height: 1px;
-			background-color: #ccc;
-			z-order: 0;
-		}
-		.salesforcebootstrap .stepwizard-step {
-			display: table-cell;
-			text-align: center;
-			position: relative;
-		}
-		.salesforcebootstrap .btn-circle {
-			width: 30px;
-			height: 30px;
-			text-align: center;
-			padding: 6px 0;
-			font-size: 12px;
-			line-height: 1.428571429;
-			border-radius: 15px;
-		}
-		.salesforcebootstrap select {
-			min-width: 150px;
-		}
-	</style>
+  <style>
+    body{ 
+      margin-top:40px; 
+    }
+    .salesforcebootstrap .stepwizard-step p {
+      margin-top: 10px;
+    }
+    .salesforcebootstrap .stepwizard-row {
+      display: table-row;
+    }
+    .salesforcebootstrap .stepwizard {
+      display: table;
+      width: 100%;
+      position: relative;
+    }
+    .salesforcebootstrap .stepwizard-step button[disabled] {
+      opacity: 1 !important;
+      filter: alpha(opacity=100) !important;
+    }
+    .salesforcebootstrap .stepwizard-row:before {
+      top: 14px;
+      bottom: 0;
+      position: absolute;
+      content: " ";
+      width: 100%;
+      height: 1px;
+      background-color: #ccc;
+      z-order: 0;
+    }
+    .salesforcebootstrap .stepwizard-step {
+      display: table-cell;
+      text-align: center;
+      position: relative;
+    }
+    .salesforcebootstrap .btn-circle {
+      width: 30px;
+      height: 30px;
+      text-align: center;
+      padding: 6px 0;
+      font-size: 12px;
+      line-height: 1.428571429;
+      border-radius: 15px;
+    }
+    .salesforcebootstrap select {
+      min-width: 150px;
+    }
+  </style>
 
-	<script>
-		var queryApp = angular.module('queryApp', []);
+  <script>
+    var queryApp = angular.module('queryApp', []);
 
-		queryApp.controller('AppCtrl', ['$scope', function($scope) {
-			$scope.SObjects = {!SObjects};
-			$scope.fields = null;
+    queryApp.controller('AppCtrl', ['$scope', function($scope) {
+      $scope.SObjects = {!SObjects};
+      $scope.fields = null;
 
-			$scope.reloadFields = function() {
-				$scope.fields = $scope.SObjects.find(function(obj) {
-					return obj.objectTypeName == $scope.selectedObject;
-				}).fields;
-			};
+      $scope.reloadFields = function() {
+        angular.forEach(angular.element(document.querySelector('#fieldSelect2')).children('option'), function(value) {
+          value.remove();
+        });
 
-			$scope.query = null;
+        $scope.fields = $scope.SObjects.find(function(obj) {
+          return obj.objectTypeName == $scope.selectedObject;
+        }).fields;
+      };
 
-			$scope.designQuery = function() {
-				var array = [];
-				angular.forEach(angular.element(document.querySelector('#fieldSelect2')).children('option'), function(value) {
-					array.push(value.attributes['value'].value);
-				});
-				$scope.selectedFields = array;
-				$scope.query = 'SELECT ' + $scope.selectedFields.toString().replace(/,/g, ", ") + ' FROM ' + $scope.selectedObject;
-			}
+      $scope.query = null;
+      $scope.selectedFields = [];
 
-			$scope.result = null;
+      $scope.designQuery = function() {
+        var array = [];
+        angular.forEach(angular.element(document.querySelector('#fieldSelect2')).children('option'), function(value) {
+          array.push(value.attributes['value'].value);
+        });
+        $scope.selectedFields = array;
+        $scope.query = 'SELECT ' + $scope.selectedFields.toString().replace(/,/g, ", ") + ' FROM ' + $scope.selectedObject;
+      }
 
-			$scope.execute = function(scope) {
-				Visualforce.remoting.Manager.invokeAction(
-					'QueryDesignerController.executeQuery', $scope.query,
-					function(result, event) {
-						$scope.result = result;
-					},
-					{escape: false}
-				);
-				angular.forEach(angular.element(document.querySelector('#fieldSelect2')).children('option'), function(value) {
-					value.remove();
-				});
-				$scope.selectedFields = $scope.query.substring(7, $scope.query.indexOf(' FROM')).trim().split(", ");
-				console.log($scope.selectedFields);
-			}
-		}]);
-	</script>
+      $scope.changeQuery = function() {
+        $scope.selectedObject = $scope.query.substring($scope.query.indexOf('FROM') + 4).trim();
+        $scope.reloadFields();
+        $scope.selectedFields = $scope.query.substring(7, $scope.query.indexOf(' FROM')).trim().split(", ");
 
-	<div class="salesforcebootstrap" ng-app="queryApp">
-		<div ng-controller="AppCtrl">
-		
-			<div class="container">
+        $scope.fields = $scope.fields.filter(function(element) {
+          return $scope.query.substring(7, $scope.query.indexOf(' FROM')).trim().split(", ").indexOf(element) === -1;
+        });
+      }
 
-				<div class="stepwizard">
-					<div class="stepwizard-row setup-panel">
-						<div class="stepwizard-step">
-							<a href="#step-1" type="button" class="btn btn-primary btn-circle">1</a>
-							<p>Step 1</p>
-						</div>
-						<div class="stepwizard-step">
-							<a href="#step-2" type="button" class="btn btn-default btn-circle" disabled="disabled">2</a>
-							<p>Step 2</p>
-						</div>
-						<div class="stepwizard-step">
-							<a href="#step-3" type="button" class="btn btn-default btn-circle" disabled="disabled">3</a>
-							<p>Step 3</p>
-						</div>
-					</div>
-				</div>
+      $scope.result = [];
 
-				<form role="form">
-					<div class="row setup-content" id="step-1">
-						<div class="col-xs-12">
-							<div class="col-md-12">
-								<h3> Step 1</h3>
-								<div class="form-group">
-									<label for="objectSelect" class="control-label">Choose SObjectType:</label>
-									<input list="sObjects" name="" id="objectSelect" class="form-control" ng-model="selectedObject"/>
-									<datalist id="sObjects">
-										<option ng-repeat="option in SObjects" value="{{option.objectTypeName}}">{{option.objectTypeName}}</option>
-									</datalist>
-								</div>
-								<button class="btn btn-primary nextBtn pull-right" type="button" ng-click="reloadFields();">Next</button>
-							</div>
-						</div>
-					</div>
-					<div class="row setup-content" id="step-2">
-						<div class="col-xs-12">
-							<div class="col-md-12">
-								<h3> Step 2</h3>
-								<div class="form-group">
-									<label for="fieldSelect" class="control-label">Choose fields:</label>
-									<table>
-										<tr>
-											<td>
-												<select name="" id="fieldSelect1" class="form-control" size="10" multiple="true">
-													<option ng-repeat="item in fields" value="{{item}}">{{item}}</option>
-												</select>
-											</td>
-											<td>
-												<button class="btn btn-default btn-xs" type="button" onclick="MoveRows(document.getElementById('fieldSelect1'), document.getElementById('fieldSelect2'));">
-													<span class="glyphicon glyphicon-triangle-right"></span>
-												</button><br/><br/>
-												<button class="btn btn-default btn-xs" type="button" onclick="MoveRows(document.getElementById('fieldSelect2'), document.getElementById('fieldSelect1'));">
-													<span class="glyphicon glyphicon-triangle-left"></span>
-												</button>
-											</td>
-											<td>
-												<select name="" id="fieldSelect2" class="form-control" size="10" multiple="true">
-													<option ng-repeat="item in selectedFields" value="{{item}}">{{item}}</option>
-												</select>
-											</td>
-											<td>
-												<button class="btn btn-default btn-xs" type="button">
-													<span class="glyphicon glyphicon-triangle-top"></span>
-												</button><br/><br/>
-												<button class="btn btn-default btn-xs" type="button">
-													<span class="glyphicon glyphicon-triangle-bottom"></span>
-												</button>
-											</td>
-										</tr>
-									</table>
-								</div>
-								<button class="btn btn-primary nextBtn pull-right" type="button" ng-click="designQuery();">Next</button>
-							</div>
-						</div>
-					</div>
-					<div class="row setup-content" id="step-3">
-						<div class="col-xs-12">
-							<div class="col-md-12">
-								<h3> Step 3</h3>
-								<div class="form-group">
-									<label for="queryStr" class="control-label">Check query:</label>
-									<textarea id="queryStr" rows="2" class="form-control" ng-model="query"></textarea>
-								</div>
-								<button ng-click ="execute();" ng-model="result" class="btn btn-primary pull-right">Execute</button>
-							</div>
-						</div>
-					</div>
-				</form>
-			</div>
+      $scope.execute = function(scope) {
+        Visualforce.remoting.Manager.invokeAction('QueryDesignerController.executeQuery', $scope.query, function(result, event) {
+            $scope.result = result;
+          },
+          {escape: false}
+        );
+        $scope.groupToPages();
+      }
 
-			<!-- <section>
-				<div class="wizard">
+      $scope.orderByField = null;
 
-					<ul class="nav nav-wizard">
-						<li class="active">
-							<a href="#step1" data-toggle="tab">SObjectType</a>
-						</li>
-						<li class="disabled">
-							<a href="#step2" data-toggle="tab">Fields</a>
-						</li>
-						<li class="disabled">
-							<a href="#step4" data-toggle="tab">Query</a>
-						</li>
-					</ul>
-				
-					<div class="tab-content">
-						<div class="tab-pane active" id="step1">
-							<label for="objectSelect">Choose SObjectType:</label>
-							<select name="" id="objectSelect" class="form-control" ng-change="reloadFields();" ng-model="selectedObject">
-								<option ng-repeat="option in SObjects" value="{{option.objectTypeName}}">{{option.objectTypeName}}</option>
-							</select>
-							<button type="button" class="btn btn-primary">Continue</button>
-						</div>
-						<div class="tab-pane" id="step2">
-							<label for="fieldSelect">Choose fields:</label>
-							<select name="" id="fieldSelect" class="form-control" ng-change="designQuery();" ng-model="selectedFields" size="5" multiple="true">
-								<option ng-repeat="item in fields" value="{{item}}">{{item}}</option>
-							</select>
-							<button type="button" class="btn btn-primary">Previous</button>
-							<button type="button" class="btn btn-primary">Continue</button>
-						</div>
-						<div class="tab-pane" id="step4">
-							<label for="queryStr">Check query:</label>
-							<textarea id="queryStr" rows="2" class="form-control" ng-model="query"></textarea>
-							<button type="button" class="btn btn-primary">Previous</button>
-							<button ng-click ="execute();" ng-model="result" class="btn btn-primary">Execute</button>
-						</div>
-					</div>
-				</div>
-			</section> -->
+      $scope.sortRecords = function($event) {
+        var oldValue = $scope.orderByField,
+            newValue = angular.element($event.currentTarget).text();
 
-			<div class="col-md-12">
-				<table class="table table-striped">
-					<thead>
-						<tr>
-							<th ng-repeat="item in selectedFields">{{item}}</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr ng-repeat="option in result">
-							<td ng-repeat="item in selectedFields">{{option[item]}}</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
+        $scope.orderByField = (oldValue == newValue) ? ('-' + newValue) : newValue;
+      }
 
-		</div>
-	</div>
+      $scope.currentPage = 0;
+      $scope.itemsPerPage = 5;
+      $scope.pagedItems = [];
 
-	<script>
-		$(document).ready(function () {
-		    var navListItems = $('div.setup-panel div a'),
-				allWells = $('.setup-content'),
-				allNextBtn = $('.nextBtn');
+      $scope.groupToPages = function () {
+        for (var i = 0; i < $scope.result.length; i++) {
+          if (i % $scope.itemsPerPage === 0) {
+            $scope.pagedItems[Math.floor(i / $scope.itemsPerPage)] = [ $scope.result[i] ];
+          } else {
+            $scope.pagedItems[Math.floor(i / $scope.itemsPerPage)].push($scope.result[i]);
+          }
+        }
+        console.log($scope.pagedItems[0]);
+      };
 
-			allWells.hide();
+      $scope.range = function (start, end) {
+        var ret = [];
 
-			navListItems.click(function (e) {
-				e.preventDefault();
-				
-				var $target = $($(this).attr('href')),
-					$item = $(this);
+        if (!end) {
+          end = start;
+          start = 0;
+        }
 
-				if (!$item.hasClass('disabled')) {
-					navListItems.removeClass('btn-primary').addClass('btn-default');
-					$item.addClass('btn-primary');
-					allWells.hide();
-					$target.show();
-					$target.find('input:eq(0)').focus();
-				}
-			});
+        for (var i = start; i < end; i++) {
+          ret.push(i);
+        }
 
-			allNextBtn.click(function(){
-				var curStep = $(this).closest(".setup-content"),
-					curStepBtn = curStep.attr("id"),
-					nextStepWizard = $('div.setup-panel div a[href="#' + curStepBtn + '"]').parent().next().children("a"),
-					curInputs = curStep.find("input[type='text'],input[type='url']"),
-					isValid = true;
+        return ret;
+      };
 
-				$(".form-group").removeClass("has-error");
+      $scope.prevPage = function () {
+        if ($scope.currentPage > 0) {
+          $scope.currentPage--;
+        }
+      };
+    
+      $scope.nextPage = function () {
+        if ($scope.currentPage < $scope.pagedItems.length - 1) {
+          $scope.currentPage++;
+        }
+      };
 
-				for(var i=0; i<curInputs.length; i++) {
-					if (!curInputs[i].validity.valid) {
-						isValid = false;
-						$(curInputs[i]).closest(".form-group").addClass("has-error");
-					}
-				}
+      $scope.setPage = function () {
+        $scope.currentPage = this.n;
+      };
 
-				if (isValid)
-					nextStepWizard.removeAttr('disabled').trigger('click');
-			});
+      $scope.edit = function($event) {
+        var fieldValue = angular.element($event.currentTarget.parentNode).text().trim();
+      }
+    }]);
+  </script>
 
-			$('div.setup-panel div a.btn-primary').trigger('click');
-		});
+  <div class="salesforcebootstrap" ng-app="queryApp">
+    <div ng-controller="AppCtrl">
 
-		function MoveRows(select1, select2) {
-			var selectId ='',
-				selectValue='';
-		
-		    for (i = select1.options.length - 1; i >= 0; i --) {
-        		if (select1.options[i].selected == true) {
-            		selectId = select1.options[i].value;
-            		selectValue = select1.options[i].text;
+      <div class="container">
 
-            		var newRow = new Option(selectValue, selectId);
-            		select2.options[select2.length] = newRow;
-            		select1.options[i] = null;
-        		}
-    		}
-		}
-	</script>
+        <div class="stepwizard">
+          <div class="stepwizard-row setup-panel">
+            <div class="stepwizard-step">
+              <a href="#step-1" type="button" class="btn btn-primary btn-circle">1</a>
+              <p>Step 1</p>
+            </div>
+            <div class="stepwizard-step">
+              <a href="#step-2" type="button" class="btn btn-default btn-circle" disabled="disabled">2</a>
+              <p>Step 2</p>
+            </div>
+            <div class="stepwizard-step">
+              <a href="#step-3" type="button" class="btn btn-default btn-circle" disabled="disabled">3</a>
+              <p>Step 3</p>
+            </div>
+          </div>
+        </div>
+
+        <form role="form">
+          <div class="row setup-content" id="step-1">
+            <div class="col-xs-12">
+              <div class="col-md-12">
+                <h3> Step 1</h3>
+                <div class="form-group">
+                  <label for="objectSelect" class="control-label">Choose SObjectType:</label>
+                  <input list="sObjects" name="" id="objectSelect" class="form-control" ng-model="selectedObject"/>
+                  <datalist id="sObjects">
+                    <option ng-repeat="option in SObjects" value="{{option.objectTypeName}}">{{option.objectTypeName}}</option>
+                  </datalist>
+                </div>
+                <button class="btn btn-primary nextBtn pull-right" type="button" ng-click="reloadFields();">Next</button>
+              </div>
+            </div>
+          </div>
+          <div class="row setup-content" id="step-2">
+            <div class="col-xs-12">
+              <div class="col-md-12">
+                <h3> Step 2</h3>
+                <div class="form-group">
+                  <label for="fieldSelect" class="control-label">Choose fields:</label>
+                  <table>
+                    <tr>
+                      <td>
+                        <select name="" id="fieldSelect1" class="form-control" size="10" multiple="true">
+                          <option ng-repeat="item in fields" value="{{item}}">{{item}}</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button class="btn btn-default btn-xs" type="button" onclick="MoveRows(document.getElementById('fieldSelect1'), document.getElementById('fieldSelect2'));">
+                          <span class="glyphicon glyphicon-triangle-right"></span>
+                        </button><br/><br/>
+                        <button class="btn btn-default btn-xs" type="button" onclick="MoveRows(document.getElementById('fieldSelect2'), document.getElementById('fieldSelect1'));">
+                          <span class="glyphicon glyphicon-triangle-left"></span>
+                        </button>
+                      </td>
+                      <td>
+                        <select name="" id="fieldSelect2" class="form-control" size="10" multiple="true">
+                          <option ng-repeat="item in selectedFields" value="{{item}}">{{item}}</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button class="btn btn-default btn-xs" type="button">
+                          <span class="glyphicon glyphicon-triangle-top"></span>
+                        </button><br/><br/>
+                        <button class="btn btn-default btn-xs" type="button">
+                          <span class="glyphicon glyphicon-triangle-bottom"></span>
+                        </button>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                <button class="btn btn-primary nextBtn pull-right" type="button" ng-click="designQuery();">Next</button>
+              </div>
+            </div>
+          </div>
+          <div class="row setup-content" id="step-3">
+            <div class="col-xs-12">
+              <div class="col-md-12">
+                <h3> Step 3</h3>
+                <div class="form-group">
+                  <label for="queryStr" class="control-label">Check query:</label>
+                  <textarea id="queryStr" rows="2" class="form-control" ng-model="query" ng-blur="changeQuery();"></textarea>
+                </div>
+                <button ng-click ="execute();" ng-model="result" class="btn btn-primary pull-right">Execute</button>
+              </div>
+            </div>
+
+      <div class="col-md-12">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th ng-repeat="item in selectedFields"><a href="#" ng-click="sortRecords($event);">{{item}}</a></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="option in pagedItems[currentPage] | orderBy: orderByField">
+              <td ng-repeat="item in selectedFields">
+                {{option[item]}}
+                <a href="#" class="btn btn-default btn-xs pull-right" ng-click="edit($event);">
+                  <span class="glyphicon glyphicon-pencil"></span>
+                </a>
+<!--            <input type="text" value="{{option[item]}}"/>
+                <a href="#" class="btn btn-default btn-xs pull-right">
+                  <span class="glyphicon glyphicon-ok"></span>
+                </a>
+                <a href="#" class="btn btn-default btn-xs pull-right">
+                  <span class="glyphicon glyphicon-remove"></span>
+                </a> -->
+              </td>
+            </tr>
+          </tbody>
+
+          <tfoot>
+            <td colspan="{{selectedFields.length}}">
+              <ul class="pagination pull-right">
+                <li ng-class="{disabled: currentPage == 0}">
+                  <a href="#" ng-click="prevPage()">« Prev</a>
+                </li>
+                <li ng-repeat="n in range(pagedItems.length)" ng-class="{active: n == currentPage}" ng-click="setPage()">
+                  <a href="#" ng-bind="n + 1">1</a>
+                </li>
+                <li ng-class="{disabled: currentPage == pagedItems.length - 1}">
+                  <a href="#" ng-click="nextPage()">Next »</a>
+                </li>
+              </ul>
+            </td>
+          </tfoot>
+                           
+        </table>
+      </div>
+
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function () {
+      var navListItems = $('div.setup-panel div a'),
+          allWells = $('.setup-content'),
+          allNextBtn = $('.nextBtn');
+
+      allWells.hide();
+
+      navListItems.click(function (e) {
+        e.preventDefault();
+
+        var $target = $($(this).attr('href')),
+            $item = $(this);
+
+        if (!$item.hasClass('disabled')) {
+          navListItems.removeClass('btn-primary').addClass('btn-default');
+          $item.addClass('btn-primary');
+          allWells.hide();
+          $target.show();
+          $target.find('input:eq(0)').focus();
+        }
+      });
+
+      allNextBtn.click(function(){
+        var curStep = $(this).closest(".setup-content"),
+            curStepBtn = curStep.attr("id"),
+            nextStepWizard = $('div.setup-panel div a[href="#' + curStepBtn + '"]').parent().next().children("a"),
+            curInputs = curStep.find("input[type='text'],input[type='url']"),
+            isValid = true;
+
+        $(".form-group").removeClass("has-error");
+
+        for(var i=0; i<curInputs.length; i++) {
+          if (!curInputs[i].validity.valid) {
+            isValid = false;
+            $(curInputs[i]).closest(".form-group").addClass("has-error");
+          }
+        }
+
+        if (isValid)
+          nextStepWizard.removeAttr('disabled').trigger('click');
+      });
+
+      $('div.setup-panel div a.btn-primary').trigger('click');
+    });
+
+    function MoveRows(select1, select2) {
+      var selectId ='',
+          selectValue='';
+
+      for (i = select1.options.length - 1; i >= 0; i --) {
+        if (select1.options[i].selected == true) {
+          selectId = select1.options[i].value;
+          selectValue = select1.options[i].text;
+
+          var newRow = new Option(selectValue, selectId);
+          select2.options[select2.length] = newRow;
+          select1.options[i] = null;
+        }
+      }
+    }
+  </script>
 
 </apex:page>
